@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/corazawaf/coraza/v3"
@@ -35,15 +36,36 @@ func getWAF(profile string) (coraza.WAF, error) {
 		return x.(coraza.WAF), nil
 	}
 
-	// get extra rules from Redis
-	profileRules, err := rdb.Get(context.Background(), "WAF_RULES:"+profile).Result()
-	if err != nil {
-		logger.Errorf("err on getting profile rules: %s", err)
+	// get all matching rule keys from Redis using SCAN
+	pattern := "WAF_RULE:" + profile + ":*"
+	var keys []string
+	iter := rdb.Scan(context.Background(), 0, pattern, 0).Iterator()
+
+	for iter.Next(context.Background()) {
+		keys = append(keys, iter.Val())
 	}
 
-	// build WAF: CRS + gateway rules
+	if err := iter.Err(); err != nil {
+		logger.Errorf("err on scanning rule keys: %s", err)
+		return nil, err
+	}
+
+	// collect all rules from matching keys
+	var allRules strings.Builder
+	for _, key := range keys {
+		rules, err := rdb.Get(context.Background(), key).Result()
+		if err != nil {
+			logger.Warnf("err on getting rules from %s: %s", key, err)
+			continue
+		}
+		allRules.WriteString(rules)
+		allRules.WriteString("\n")
+	}
+
+	// build WAF with all collected rules
+	logger.Debugf("rules: %s", allRules.String())
 	waf, err := coraza.NewWAF(
-		coraza.NewWAFConfig().WithDirectives(profileRules),
+		coraza.NewWAFConfig().WithDirectives(allRules.String()),
 	)
 
 	if err == nil {
@@ -76,7 +98,7 @@ func main() {
 
 	router.POST("/pre", func(c *gin.Context) {
 		profile := c.GetHeader("X-WAF-Profile")
-		logger.Debug("Profile:", profile)
+		logger.Debugf("Profile: %s", profile)
 		if profile == "" {
 			profile = "default"
 		}

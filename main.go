@@ -8,15 +8,13 @@ import (
 
 	"github.com/corazawaf/coraza/v3"
 	"github.com/cybercoder/waf/pkg/logger"
+	"github.com/cybercoder/waf/pkg/redis"
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 )
 
 var wafCache sync.Map
 
-var rdb = redis.NewClient(&redis.Options{
-	Addr: "localhost:6379",
-})
+var rdb = redis.CreateClient()
 
 // const crsDirectives = `
 // SecRuleEngine On

@@ -11,4 +11,4 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 WORKDIR /
 COPY --from=builder /tlscdn_waf /usr/local/bin/tlscdn_waf
-CMD ["webhook"]
+CMD ["tlscdn_waf"]

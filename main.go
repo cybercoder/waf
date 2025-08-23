@@ -95,7 +95,7 @@ func main() {
 	})
 
 	router.POST("/pre", func(c *gin.Context) {
-		profile := c.GetHeader("X-WAF-Profile")
+		profile := c.GetHeader("x-tlscdn-waf-Profile")
 		logger.Debugf("Profile: %s", profile)
 		if profile == "" {
 			profile = "default"
@@ -109,10 +109,10 @@ func main() {
 
 		tx := waf.NewTransaction()
 
-		logger.Debugf("ip: %s host: %s", c.GetHeader("X-Client-IP"), c.Request.Host)
+		logger.Debugf("ip: %s host: %s", c.GetHeader("x-tlscdn-waf-Client-IP"), c.Request.Host)
 		tx.ProcessConnection(c.ClientIP(), 0, c.Request.Host, 443)
 		for key, values := range c.Request.Header {
-			if key == "X-WAF-Profile" {
+			if key == "x-tlscdn-waf-Profile" {
 				continue
 			}
 			for _, v := range values {
